@@ -1,14 +1,14 @@
 % This script generates A, B and C posion on image that the 
 % camera captures, takes as origin the center of the image
 
-function [ X Y X_prime Y_prime]= image_generator_nELLIPSE(Ang1,Ang2,Ang3,Distance_o,n,r)
+function [ X_prime Y_prime]= image_generator_nELLIPSE(Ang1,Ang2,Ang3,Distance_o,n,r)
 
 %%  Camera Parameters
 Width=3840; %Image resolution
 Height=2160; %Image resolution
 Fangle=50; %Focal angle
 Px=Distance_o*sind(Fangle)/sind(90-Fangle)/ (3840/2);
-Py=Px;
+Py=Px; %Asuming square pixels
 fx=Distance_o/Px;  
 fy=Distance_o/Py;
 s=fx*tand(0);
@@ -19,21 +19,19 @@ T=   [ 0 1 0;  1  0  0;   0  0 -1];
 
 
 %% Generate 3D Rotation matrix
+Rx = [     1            0                      0           ;
+              0        cosd(Ang1)  -sind(Ang1)    ; 
+              0        sind(Ang1)   cosd(Ang1)   ];
 
-Rz1 = [  cosd(Ang1)   sind(Ang1)   0  ;
-             -sind(Ang1)   cosd(Ang1)  0  ;
-                    0                   0            1] ;
-                
-Rx = [  1         0                    0           ;
-            0   cosd(Ang2)  -sind(Ang2) ; 
-            0   sind(Ang2)   cosd(Ang2) ];
+Ry = [ cosd(Ang2)       0        sind(Ang2)   ;
+               0                  1               0          ;
+          -sind(Ang2)       0        cosd(Ang2) ];   
 
-Rz2 = [  cosd(Ang3)  sind(Ang3)    0   ;
-             -sind(Ang3)   cosd(Ang3)  0   ;
-                    0                   0            1 ]  ;                         
-                
-R = Rz1*Rx*Rz2;                   
-
+Rz = [  cosd(Ang3)  sind(Ang3)    0   ;
+          -sind(Ang3)   cosd(Ang3)   0   ;
+                  0                   0            1 ]  ;   
+      
+R=Rz*Ry*Rx;
 
 %% Generate n points circle (BEACONs on a circle arange)
     for i=0:n-1
@@ -69,32 +67,5 @@ Y_prime=Image(:,1); Y_prime= [ Height/2-Y_prime];
 
 
 
-
-
-%%  Generate undistorted Ellipse as reference only
-[Mproj] = Ellipse_2D_projection(Prot,n, r);     
-X=Mproj(:,1) ;  Y=Mproj(:,2); 
-
-
-
-
-
 end
 
-
-function [Mproj ] = Ellipse_2D_projection(Prot,n,r)
-
-% Project rotated circle using equation of the plane
-P1=[ 0 1 0];    P2=[ 1 0 0];    P3=[0 0 0];
-N=cross(P1,P2);                        %Not normalized yet
-d=N*P1';                                    %d
-
-Mrot =Prot';
-    for i=0:n-1
-        t =  ( d - N(1)*Mrot(i+1,1) - N(2)*Mrot(i+1,2) - N(3)*Mrot(i+1,3) ) / ( N(1)*N(1) + N(2)*N(2) + N(3)*N(3) );  
-        rot = [cosd(90) -sind(90); sind(90) cosd(90)]; 
-        Mproj(i+1,:) =  rot*[ N(1)*t+Mrot(i+1,1) N(2)*t+Mrot(i+1,2)]';
-    end %End for i
-        
-end
-    

@@ -1,15 +1,15 @@
-function [Degrees,Heigth,coeff_prime,coeff, Theta_prime,Ma, Mi,e,e_prime] = USV_Configuration_Ellipses_Test(X_prime,Y_prime)
+function [XYZ,Heigth ]  = USV_Configuration_Ellipses_Test(X_prime,Y_prime)
 
 
 %% Camera parameters to correct perspective distortion
 Fangle=50; %Focal angle, the bigger the angle the better
 fx=1920*sind(90-Fangle) /sind(Fangle);
-fy=fx;
+fy=fx; %Asuming square pixels
 s=fx*tand(0);
 Width=3840; %Image resolution
 Height=2160; %Image resolution
-cx =Width/2; %width
-cy =Height/2; %height
+cx =Width/2; %Image width resolution
+cy =Height/2; %Image height resolution
 r=10;%USV deck circle radius
 
 %% Camera plane normal
@@ -20,8 +20,8 @@ d=N*P1';                                    %d
 %% Ellipse fit
 
 [a_prime, b_prime, k, h, Theta_prime, coeff_prime] = ellipse_fit(X_prime, Y_prime);
-Ma_prime = max(a_prime, b_prime); Mi_prime = min(a_prime, b_prime);
-
+Ma_prime = max(a_prime, b_prime); 
+Mi_prime = min(a_prime, b_prime);
 
 %% Compute IR 3D positions
 
@@ -44,90 +44,83 @@ Heigth(i)=r/norm([Xbar Ybar Zbar]);
 
 %% 3D point projection to camera 2D plane
 P3d(i,:)=r*[Xbar Ybar Zbar]/norm([Xbar Ybar Zbar]);
-t =  ( d - N(1)*P3d(i,1) - N(2)*P3d(i,2) - N(3)*P3d(i,3) ) / ( N(1)*N(1) + N(2)*N(2) + N(3)*N(3) );  
-rot = [cosd(90) -sind(90); sind(90) cosd(90)]; 
-P2d(i,:)=[rot*[ N(1)*t+P3d(i,1) N(2)*t+P3d(i,2)]']';
+% t =  ( d - N(1)*P3d(i,1) - N(2)*P3d(i,2) - N(3)*P3d(i,3) ) / ( N(1)*N(1) + N(2)*N(2) + N(3)*N(3) )
+% rot = [cosd(90) -sind(90); sind(90) cosd(90)] 
+% P2d(i,:)=[rot*[ N(1)*t+P3d(i,1) N(2)*t+P3d(i,2)]']'
+P2d(i,:)=[  -P3d(i,2) P3d(i,1)];
 
 end % End for loop i
 
-
-
+%% Height 
 Heigth=mean(Heigth);
 
+%% Compute 2D ellipse
+[a, b, ignore1, ignore2, Theta, ignore3] = ellipse_fit(P2d(:,1),P2d(:,2));
+Ma = 10; Mi = min(a, b);
 
+%%  Minor Semi-axis
 
-%% Undistort Major and Minor Semi-axis
-
-phi=-sign(Theta_prime)*(90 - abs(Theta_prime));
-X1new= (0)*cosd(-phi)-(1)*sind(-phi);
-Y1new= (0)*sind(-phi)+(1)*cosd(-phi);
-V=Ma_prime*[X1new Y1new]+[k h];
-V=[V(1) V(2)]/norm([V(1) V(2)]);
-c(1)=(Mi_prime*Ma_prime*(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - V(1)^2*h^2*cos((pi*Theta_prime)/180)^4 - V(2)^2*k^2*cos((pi*Theta_prime)/180)^4 - V(1)^2*h^2*sin((pi*Theta_prime)/180)^4 - V(2)^2*k^2*sin((pi*Theta_prime)/180)^4 - 2*V(1)^2*h^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*V(2)^2*k^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^4 + 2*V(1)*V(2)*h*k*sin((pi*Theta_prime)/180)^4 + 4*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2)^(1/2) + Ma_prime^2*V(2)*h*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(1)*k*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)*h*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)*k*sin((pi*Theta_prime)/180)^2 - Mi_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) - Mi_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180))/(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180));
-c(2)=(Ma_prime^2*V(2)*h*cos((pi*Theta_prime)/180)^2 - Mi_prime*Ma_prime*(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - V(1)^2*h^2*cos((pi*Theta_prime)/180)^4 - V(2)^2*k^2*cos((pi*Theta_prime)/180)^4 - V(1)^2*h^2*sin((pi*Theta_prime)/180)^4 - V(2)^2*k^2*sin((pi*Theta_prime)/180)^4 - 2*V(1)^2*h^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*V(2)^2*k^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^4 + 2*V(1)*V(2)*h*k*sin((pi*Theta_prime)/180)^4 + 4*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2)^(1/2) + Mi_prime^2*V(1)*k*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)*h*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)*k*sin((pi*Theta_prime)/180)^2 - Mi_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) - Mi_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180))/(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180));
-Xbar = -(2*V(2)*max(c)*min(c))/(fy*max(c) - fy*min(c));
-Ybar = (2*max(c)*min(c)*(V(1)*fy + V(2)*s))/(fx*fy*(max(c) - min(c)));
-Zbar = -(max(c) + min(c))/(max(c) - min(c));
-Pma3d=r*[Xbar Ybar Zbar]/norm([Xbar Ybar Zbar]);
-t =  ( d - N(1)*Pma3d(1) - N(2)*Pma3d(2) - N(3)*Pma3d(3) ) / ( N(1)*N(1) + N(2)*N(2) + N(3)*N(3) );  
-rot = [cosd(90) -sind(90); sind(90) cosd(90)]; 
-Pma2D=[rot*[ N(1)*t+Pma3d(1) N(2)*t+Pma3d(2)]']';
-a=norm(Pma2D);
-
-X1new= (0)*cosd(-Theta_prime)-(1)*sind(-Theta_prime);
-Y1new= (0)*sind(-Theta_prime)+(1)*cosd(-Theta_prime);
+X1new= (0)*cosd(-Theta)-(1)*sind(-Theta);
+Y1new= (0)*sind(-Theta)+(1)*cosd(-Theta);
 V=Mi_prime*[X1new Y1new]+[k h];
 V=[V(1) V(2)]/norm([V(1) V(2)]);
-c(1)=(Mi_prime*Ma_prime*(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - V(1)^2*h^2*cos((pi*Theta_prime)/180)^4 - V(2)^2*k^2*cos((pi*Theta_prime)/180)^4 - V(1)^2*h^2*sin((pi*Theta_prime)/180)^4 - V(2)^2*k^2*sin((pi*Theta_prime)/180)^4 - 2*V(1)^2*h^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*V(2)^2*k^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^4 + 2*V(1)*V(2)*h*k*sin((pi*Theta_prime)/180)^4 + 4*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2)^(1/2) + Ma_prime^2*V(2)*h*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(1)*k*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)*h*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)*k*sin((pi*Theta_prime)/180)^2 - Mi_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) - Mi_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180))/(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180));
-c(2)=(Ma_prime^2*V(2)*h*cos((pi*Theta_prime)/180)^2 - Mi_prime*Ma_prime*(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - V(1)^2*h^2*cos((pi*Theta_prime)/180)^4 - V(2)^2*k^2*cos((pi*Theta_prime)/180)^4 - V(1)^2*h^2*sin((pi*Theta_prime)/180)^4 - V(2)^2*k^2*sin((pi*Theta_prime)/180)^4 - 2*V(1)^2*h^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*V(2)^2*k^2*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^4 + 2*V(1)*V(2)*h*k*sin((pi*Theta_prime)/180)^4 + 4*V(1)*V(2)*h*k*cos((pi*Theta_prime)/180)^2*sin((pi*Theta_prime)/180)^2)^(1/2) + Mi_prime^2*V(1)*k*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)*h*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)*k*sin((pi*Theta_prime)/180)^2 - Mi_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(1)*h*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) - Mi_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + Ma_prime^2*V(2)*k*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180))/(Mi_prime^2*V(1)^2*cos((pi*Theta_prime)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta_prime)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta_prime)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta_prime)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta_prime)/180)*sin((pi*Theta_prime)/180));
-Xbar = -(2*V(2)*max(c)*min(c))/(fy*max(c) - fy*min(c));
-Ybar = (2*max(c)*min(c)*(V(1)*fy + V(2)*s))/(fx*fy*(max(c) - min(c)));
+c(1)=(Mi_prime*Ma_prime*(Mi_prime^2*V(1)^2*cos((pi*Theta)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta)/180)^2 - V(1)^2*h^2*cos((pi*Theta)/180)^4 - V(2)^2*k^2*cos((pi*Theta)/180)^4 - V(1)^2*h^2*sin((pi*Theta)/180)^4 - V(2)^2*k^2*sin((pi*Theta)/180)^4 - 2*V(1)^2*h^2*cos((pi*Theta)/180)^2*sin((pi*Theta)/180)^2 - 2*V(2)^2*k^2*cos((pi*Theta)/180)^2*sin((pi*Theta)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180) + 2*V(1)*V(2)*h*k*cos((pi*Theta)/180)^4 + 2*V(1)*V(2)*h*k*sin((pi*Theta)/180)^4 + 4*V(1)*V(2)*h*k*cos((pi*Theta)/180)^2*sin((pi*Theta)/180)^2)^(1/2) + Ma_prime^2*V(2)*h*cos((pi*Theta)/180)^2 + Mi_prime^2*V(1)*k*cos((pi*Theta)/180)^2 + Mi_prime^2*V(2)*h*sin((pi*Theta)/180)^2 + Ma_prime^2*V(1)*k*sin((pi*Theta)/180)^2 - Mi_prime^2*V(1)*h*cos((pi*Theta)/180)*sin((pi*Theta)/180) + Ma_prime^2*V(1)*h*cos((pi*Theta)/180)*sin((pi*Theta)/180) - Mi_prime^2*V(2)*k*cos((pi*Theta)/180)*sin((pi*Theta)/180) + Ma_prime^2*V(2)*k*cos((pi*Theta)/180)*sin((pi*Theta)/180))/(Mi_prime^2*V(1)^2*cos((pi*Theta)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180));
+c(2)=(Ma_prime^2*V(2)*h*cos((pi*Theta)/180)^2 - Mi_prime*Ma_prime*(Mi_prime^2*V(1)^2*cos((pi*Theta)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta)/180)^2 - V(1)^2*h^2*cos((pi*Theta)/180)^4 - V(2)^2*k^2*cos((pi*Theta)/180)^4 - V(1)^2*h^2*sin((pi*Theta)/180)^4 - V(2)^2*k^2*sin((pi*Theta)/180)^4 - 2*V(1)^2*h^2*cos((pi*Theta)/180)^2*sin((pi*Theta)/180)^2 - 2*V(2)^2*k^2*cos((pi*Theta)/180)^2*sin((pi*Theta)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180) + 2*V(1)*V(2)*h*k*cos((pi*Theta)/180)^4 + 2*V(1)*V(2)*h*k*sin((pi*Theta)/180)^4 + 4*V(1)*V(2)*h*k*cos((pi*Theta)/180)^2*sin((pi*Theta)/180)^2)^(1/2) + Mi_prime^2*V(1)*k*cos((pi*Theta)/180)^2 + Mi_prime^2*V(2)*h*sin((pi*Theta)/180)^2 + Ma_prime^2*V(1)*k*sin((pi*Theta)/180)^2 - Mi_prime^2*V(1)*h*cos((pi*Theta)/180)*sin((pi*Theta)/180) + Ma_prime^2*V(1)*h*cos((pi*Theta)/180)*sin((pi*Theta)/180) - Mi_prime^2*V(2)*k*cos((pi*Theta)/180)*sin((pi*Theta)/180) + Ma_prime^2*V(2)*k*cos((pi*Theta)/180)*sin((pi*Theta)/180))/(Mi_prime^2*V(1)^2*cos((pi*Theta)/180)^2 + Ma_prime^2*V(2)^2*cos((pi*Theta)/180)^2 + Mi_prime^2*V(2)^2*sin((pi*Theta)/180)^2 + Ma_prime^2*V(1)^2*sin((pi*Theta)/180)^2 - 2*Mi_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180) + 2*Ma_prime^2*V(1)*V(2)*cos((pi*Theta)/180)*sin((pi*Theta)/180));
+% Xbar = -(2*V(2)*max(c)*min(c))/(fy*max(c) - fy*min(c));
+% Ybar = (2*max(c)*min(c)*(V(1)*fy + V(2)*s))/(fx*fy*(max(c) - min(c)));
 Zbar = -(max(c) + min(c))/(max(c) - min(c));
-Pmi3d=r*[Xbar Ybar Zbar]/norm([Xbar Ybar Zbar]);
-t =  ( d - N(1)*Pmi3d(1) - N(2)*Pmi3d(2) - N(3)*Pmi3d(3) ) / ( N(1)*N(1) + N(2)*N(2) + N(3)*N(3) );  
-rot = [cosd(90) -sind(90); sind(90) cosd(90)]; 
-Pmi2D=[rot*[ N(1)*t+Pmi3d(1) N(2)*t+Pmi3d(2)]']';
-b=norm(Pmi2D);
+% Pmi3d=sign(Theta)*r*[Xbar Ybar Zbar]/norm([Xbar Ybar Zbar]);
+Pmi3d(3)=sign(Theta)*Zbar;
+%% ZXZ euler angles
 
-Ma = max(a, b); Mi = min(a, b);
+phi=sign(Theta)*(90 - abs(Theta));
+Pma3d=[  r*cosd(phi)   r*sind(phi) 0];
+Pbow=[ P3d(1,1) P3d(1,2) P3d(1,3) ];
 
+Gamma=-sign( Pmi3d(3))*sign(Pbow(3))*acosd(1-(norm(Pma3d-Pbow)^2)/ (2*r^2));
 
-%% Alternative option to compute  undistorted Semi-axis 
-%Note, this method is more sensible to noise bur I added so you can take it
-%as reference
-P2d=double(P2d);
-[ignore1, ignore2, ignore3, ignore4, Theta, coeff] = ellipse_fit(P2d(:,1),P2d(:,2));
-% Ma = max(a, b); Mi = min(a, b);
+Beta=sign( Pmi3d(3))*acosd(Mi/r);
 
+Alpha=phi;
 
-
-%% Compute Alpha, Beta and Gamma
+Degree = [ Alpha Beta Gamma];
 
 
-Alpha=sign(Theta_prime)*(90-abs(Theta_prime) ) -90*(sign(sign(Theta_prime)*(90-abs(Theta_prime) ))+ sign(c(1)+c(2)));
 
-Beta=acosd(Mi/r);
+%% Convert to quaternion , then to XYZ
 
-Pma3D=[ r*sind(Theta_prime)  r*cosd(Theta_prime) 0];
-Pbow=double([ P3d(1,1) P3d(1,2) P3d(1,3) ]);
-Gamma = sign(P3d(1,3))*sign(c(1)+c(2))*atan2d(norm(cross(Pma3D,Pbow)), dot(Pma3D,Pbow))+90*(1+sign(c(1)+c(2)))-180*(sign(P3d(1,3))+1)*sign(1+sign(c(1)+c(2)));
+Deg = 0.5*[ Alpha Beta Gamma]*pi/180;
 
+q =    [ cos(Deg(3))*cos(Deg(2))*cos(Deg(1)) - sin(Deg(3))*cos(Deg(2))*sin(Deg(1)), ...
+            cos(Deg(3))*sin(Deg(2))*cos(Deg(1)) + sin(Deg(3))*sin(Deg(2))*sin(Deg(1)), ...
+            sin(Deg(3))*sin(Deg(2))*cos(Deg(1)) - cos(Deg(3))*sin(Deg(2))*sin(Deg(1)), ...
+            cos(Deg(3))*cos(Deg(2))*sin(Deg(1)) + sin(Deg(3))*cos(Deg(2))*cos(Deg(1))];
+        
+        
+q0=q(1); q1=q(2); q2=q(3); q3=q(4);        
+        
+% Roll (X-axis rotation)
+sinr_cosp = 2.0 * (q0 * q1 + q2 * q3);
+cosr_cosp = 1.0 - 2.0 * (q1 * q1 + q2 * q2);
+Roll = atan2(sinr_cosp, cosr_cosp)*180/pi;
 
-%% Circle eccentricity
+% Pitch (Y-axis rotation)
+sinp = 2.0 * (q0 * q2 - q3 * q1);
+Pitch = -asin(sinp)*180/pi;
 
-e_prime=sqrt(1-Mi_prime^2/Ma_prime^2); %Eccentricity of distorted Semi-axis
-e=sqrt(1-Mi^2/r^2);%Eccentricity of undistorted Semi-axis
+% yaw (z-axis rotation)
+siny_cosp = 2.0 * (q0 * q3 + q1 * q2);
+cosy_cosp = 1.0 - 2.0 * (q2 * q2 + q3 * q3);
+Yaw = atan2(siny_cosp, cosy_cosp)*180/pi;
 
-%% OUTPUTS
-
-Degrees = [ Alpha Beta Gamma];
+XYZ=[Roll Pitch Yaw];
 
 end
 
 
 
 
-function [semimajor_axis, semiminor_axis, x0, y0, Theta , coeff ,test] = ellipse_fit(x, y)
+function [a_prime, b_prime, x0, y0, Theta , coeff ] = ellipse_fit(x, y)
 
 x = x(:);
 y = y(:);
@@ -154,23 +147,16 @@ nom = 2 * (A*E^2 + C*D^2 + F*B^2 - 2*B*D*E - A*C*F);
 s = sqrt(1 + (4*B^2)/(A-C)^2);
 a_prime = sqrt(nom/(delta*( (C-A)*s -(C+A))));
 b_prime = sqrt(nom/(delta*( (A-C)*s -(C+A))));
-semimajor_axis = a_prime;
-semiminor_axis = b_prime;
-
 
 %% Compute Theta
 Theta = 0.5 * acotd((C-A)/(2*B));
+
 if (a_prime < b_prime)
     Theta = 90 + Theta;
 end
 
 if B < 0 & Theta>90
 Theta=-180+Theta;
-end
-
-limit=.01;
-if B > -limit & B < limit & D > -limit & D < limit
-Theta=0;
 end
 
 
